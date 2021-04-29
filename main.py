@@ -281,15 +281,94 @@ class Calculator:
         return a * b
 
     def _division(self, a, b):
-        if b == 0:
-            return "Nao eh possivel divisao por zero"
-        return a / b
+        try:
+            return a / b
+        except ZeroDivisionError as e:
+            return "Nao eh possivel efetuar uma divisão por zero"
 
     def _subtraction(self, a, b):
         return a - b
 
     def _addition(self, a, b):
         return a + b
+
+
+def funcCelsFah ():
+    op = float(input('Digite a temperatura em Celsius: '))
+    fah = (op*1.8) + 32
+    print("\n {:.2f}ºF".format(round(fah, 2)))
+
+def funcFahCel ():
+    op = float(input('Digite a temperatura em Fahrenheit : '))
+    cel = (op-32) / 1.8
+    print("\n {:.2f}ºC".format(round(cel, 2)))
+
+def funcLbKg ():
+    op = float(input('Digite o peso em lbs : '))
+    kg = (op/2.2046)
+    print("\n {:.2f}kg".format(round(kg, 2)))
+
+def funcKgLb ():
+    op = float(input('Digite o peso em kg : '))
+    kg = (op*2.2046)
+    print("\n {:.2f}lbs".format(round(kg, 2)))
+    
+def funcKmMi():
+    op = float(input('Digite a distancia em km : '))
+    mi = (op/1.609)
+    print("\n {:.2f} milhas".format(round(mi, 2)))
+
+def funcMiKm():
+    op = float(input('Digite a distancia em milhas : '))
+    mi = (op*1.609)
+    print("\n {:.2f} km".format(round(mi, 2))) 
+    
+def funcRealDols():
+    op = float(input('Digite quantos dólares você tem a sorte de ter agora : '))
+    usd = (op*23.73)
+    print("\n Com US$"+str(op)+ " vc tem aproximadamente R${:.2f}!".format(round(usd, 2))) 
+
+def main ():
+    while True:
+        
+        print('\n' + 50*'*')
+        print(15*' ' + 'CONVERSOR DE MEDIDAS')
+        print(50*'*'+'\n')
+        print('1 - Conversor de Celsius para Fahrenheit')
+        print('2 - Conversor de Fahrenheit para Celsius')
+        print('3 - Conversor de libras para kg')
+        print('4 - Conversor de kg para libras')
+        print('5 - Conversor de km para milhas')
+        print('6 - Conversor de milhas para km')
+        print('7 - Conversor aproximado de dólares para reais do futuro no ano de 2032')
+        print('8 - Encerrar programa')
+
+        op = int(input('Escolha uma das opcões acima (1 a 8):'))
+        
+        if (op == 1):
+            funcCelsFah()
+            input('Digite uma tecla para voltar ao menu inicial')
+        elif (op == 2):
+            funcFahCel ()
+            input('Digite uma tecla para voltar ao menu inicial')
+        elif (op == 3):
+            funcLbKg()
+            input('Digite uma tecla para voltar ao menu inicial')
+        elif (op == 4):
+            funcKgLb()
+            input('Digite uma tecla para voltar ao menu inicial')
+        elif (op == 5):
+            funcKmMi()
+            input('Digite uma tecla para voltar ao menu inicial')
+        elif (op == 6):
+            funcMiKm()
+            input('Digite uma tecla para voltar ao menu inicial')    
+        elif (op == 7):
+            funcRealDols()
+            input('Digite uma tecla para voltar ao menu inicial')
+        elif (op == 8):
+            break;
+            exit()
 
 
 if __name__ == "__main__":
