@@ -5,47 +5,72 @@ import base64
 import datetime
 import re
 import sys
+import pandas as pd
+import numpy as np
 
 
-def query_commit(funcao):
+USERS_TABLE = 'tio_gordo_users.csv'
+
+
+class Bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+
+class IntegrityError(Exception):
+    pass
+
+
+def df_commit(funcao):
     def wrapper(self, *args):
         result = funcao(self, *args)
-        self.con.commit()
+        self.df.to_csv(USERS_TABLE, index=False)
         return result
     return wrapper
 
 
 class Database:
     def __init__(self, *args, **kwargs):
-        self._cursor = None
-        self.con = sqlite3.connect('tio_gordo.db')
-        self.create_tables()
+        self.create_file()
+        self.df = pd.read_csv(USERS_TABLE)
+        self.df = self.df.replace(np.nan, '', regex=True)
 
-    def create_tables(self, *args, **kwargs):
-        query = '''
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                first_name TEXT,
-                last_name TEXT,
-                login TEXT NOT NULL UNIQUE,
-                password TEXT NOT NULL,
-                created_at TEXT,
-                is_active INTEGER DEFAULT 1
-            );
-        '''
-        self.cursor.execute(query)
+    def create_file(self):
+        if os.path.exists(USERS_TABLE):
+            return
 
-    @query_commit
-    def insert(self, query):
-        self.cursor.execute(query)
+        columns=[
+            'id',
+            'first_name',
+            'last_name',
+            'login',
+            'password',
+            'created_at',
+            'is_active',
+        ]
+        df = pd.DataFrame(columns=columns)
+        df.to_csv(USERS_TABLE, index=False)
 
-    @property
-    def cursor(self):
-        if self._cursor:
-            return self._cursor
+    def get_next_index(self):
+        return len(self.df) + 1
 
-        self._cursor = self.con.cursor()
-        return self._cursor
+    @df_commit
+    def insert(self, data):
+        data['id'] = self.get_next_index()
+        if not self.df.query(f"login == '{data['login']}'").empty:
+            raise IntegrityError()
+
+        self.df = self.df.append(data, ignore_index=True)
+        return True
+
+    def query(self, query):
+        return self.df.query(query)
 
 
 class User:
@@ -72,41 +97,35 @@ class User:
         return base64.b64encode(self._password.encode('ascii')).decode('ascii')
 
     def _fill_fields(self, fields):
-        self.id = fields[0]
-        self.first_name = fields[3]
-        self.last_name = fields[4]
-        self.created_at = fields[5]
-        self.is_active = fields[6]
+        self.id = fields['id']
+        self.first_name = fields['first_name']
+        self.last_name = fields['last_name']
+        self.created_at = fields['created_at']
+        self.is_active = fields['is_active']
 
     def create(self):
-        query = '''
-            INSERT INTO users (login, password, first_name, last_name, created_at)
-            VALUES ('{login}', '{password}', '{first_name}', '{last_name}', '{created_at}')
-        '''.format(
-            login=self.login,
-            password=self.password,
-            first_name=self.first_name,
-            last_name=self.last_name,
-            created_at=datetime.datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
-        )
-        self.database.insert(query)
+        data = {
+            'login': self.login,
+            'password': self.password,
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'created_at': datetime.datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
+            'is_active': 1,
+        }
+        self.database.insert(data)
 
     def authenticate(self):
-        query = f'''
-            SELECT
-                id, login, password, first_name, last_name, created_at, is_active
-            FROM
-                users
-            WHERE
-                login = '{self.login}'
-                AND password = '{self.password}'
-                AND is_active = 1
-        '''
-        self.database.cursor.execute(query)
-        if user := self.database.cursor.fetchall():
+        filters = [
+            f"login == '{self.login}'",
+            f"password == '{self.password}'",
+            "is_active == 1",
+        ]
+        df = self.database.query(' and '.join(filters))
+        if not df.empty:
+            user = df.to_dict(orient='records')[0]
             self._authenticated = True
-            self._fill_fields(user[0])
-            return user[0]
+            self._fill_fields(user)
+            return user
         return False
 
     @property
@@ -130,6 +149,9 @@ class TerminalClear:
 
 
 class Menu:
+    regex_hard_password_validator = r'^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[*.!@$%^&(){}[]:;<>,.?/~_+-=|\]).{8,32}$'
+    regex_password_validator = r'^(?=.*[a-zA-Z0-9]).{3,}$'
+
     def __init__(self, database, calculator, *args, **kwargs):
         self.database = database
         self.options = {
@@ -142,15 +164,18 @@ class Menu:
             '2': self._sign_in,
         }
 
-        print(
-            '1. Login',
-            '2. Cadastre-se',
-            sep='\n',
-        )
-        option = input('Selecione uma opção acima: ')
-        logged = self.initial_options[option]()
-        if not logged:
-            return
+        while True:
+            print(
+                '1. Login',
+                '2. Cadastre-se',
+                sep='\n',
+            )
+            option = input('Selecione uma opção acima: ')
+            logged, msg = self.initial_options[option]()
+            self.options['5'].main()
+            if logged:
+                break
+            print(msg)
 
     def _login(self):
         login = input('Login: ')
@@ -159,14 +184,21 @@ class Menu:
         self.user = User(login, password, database=self.database)
         self.user.authenticate()
         if not self.user.is_authenticated:
-            print("Usuario nao encontrado")
-            return False
-        
-        return True
+            return False, "Usuario e/ou senha invalidos"
+
+        return True, ""
 
     def _sign_in(self):
         login = input('Login: ')
-        password = input('Password: ')
+
+        password = None
+        while not password:
+            _password = input('Password: ')
+            if re.match(self.regex_password_validator, _password):
+                password = _password
+            else:
+                print('Por favor insira uma senha mais segura')
+
         first_name = input('First Name (can be empty): ')
         last_name = input('Last Name (can be empty): ')
 
@@ -179,12 +211,11 @@ class Menu:
         )
         try:
             self.user.create()
-        except sqlite3.IntegrityError:
-            print('Usuario ja cadastrado')
-            return False
+        except IntegrityError:
+            return False, f"{Bcolors.FAIL}Usuario {login} ja cadastrado{Bcolors.ENDC}"
 
         self.user.authenticate()
-        return True
+        return True, ""
 
     def header(self):
         if self.user.is_authenticated:
@@ -208,7 +239,7 @@ class Menu:
             return
 
         self.options[option].main()
-        input('Aperte enter para continuar')
+        input('\nAperte enter para continuar\n')
 
 
 class Calculator:
@@ -217,16 +248,19 @@ class Calculator:
     def main(self):
         print('Bem vindo a Calculadora')
         print('Por favor digite a expressao desejada')
+        print('Para sair da calculadora, digite 0 e aperte enter')
         print('Exemplo:')
         print('10 * 8')
         print('10 / 8')
         print('10 + 8')
         print('10 - 8')
-        # print('Invalidos:')
-        # print('10 x 8')
-        # print('10 soma 8')
-        expression = input()
-        self.calc(expression)
+
+        while True:
+            expression = input('Operacao: ')
+            if expression == '0':
+                return
+            print(expression, end=" => ")
+            self.calc(expression)
 
     def calc(self, string):
         self.expressions = {
