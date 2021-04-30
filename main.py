@@ -7,9 +7,31 @@ import re
 import sys
 import pandas as pd
 import numpy as np
+import requests
 
 
 USERS_TABLE = 'tio_gordo_users.csv'
+
+
+class Currency:
+    def __init__(self, *args, **kwargs):
+        self.url = "https://www.alphavantage.co/query"
+        self.api_key = "MC6NE9KMDFIWKVY5"
+
+    def get_current_value(self, currency):
+        querystring = {
+            "function": "CURRENCY_EXCHANGE_RATE",
+            "from_currency": "USD",
+            "to_currency": currency,
+            "apikey": self.api_key,
+        }
+
+        response = requests.get(
+            self.url,
+            params=querystring,
+        )
+
+        return response.json()
 
 
 class Bcolors:
@@ -152,10 +174,11 @@ class Menu:
     regex_hard_password_validator = r'^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[*.!@$%^&(){}[]:;<>,.?/~_+-=|\]).{8,32}$'
     regex_password_validator = r'^(?=.*[a-zA-Z0-9]).{3,}$'
 
-    def __init__(self, database, calculator, *args, **kwargs):
+    def __init__(self, database, calculator, metric_converter, *args, **kwargs):
         self.database = database
         self.options = {
             '1': calculator,
+            '2': metric_converter,
             '5': TerminalClear,
         }
 
@@ -225,7 +248,7 @@ class Menu:
         self.header()
         print(
             f'1. Calculadora',
-            '2. Gerar a lista usando o comando FOR',
+            '2. Conversor de medidas',
             '3. Gerar a lista usando a função MAP',
             '4. Gerar a lista usando a função FILTER',
             '5. Limpar a tela',
@@ -238,12 +261,23 @@ class Menu:
             print('Opcao invalida !!!')
             return
 
+        print('\n' * 10)
         self.options[option].main()
-        input('\nAperte enter para continuar\n')
+        print('\n' * 10)
+
+        # input('\nAperte enter para continuar\n')
 
 
 class Calculator:
-    regex = r'(\d+) *([-+*/]) *(\d+)'
+    regex = r'(\d+) *(.) *(\d+)'
+
+    def __init__(self, *args, **kwargs):
+        self.expressions = {
+            '*': self._multiplication,
+            '/': self._division,
+            '-': self._subtraction,
+            '+': self._addition,
+        }
 
     def main(self):
         print('Bem vindo a Calculadora')
@@ -256,26 +290,25 @@ class Calculator:
         print('10 - 8')
 
         while True:
-            expression = input('Operacao: ')
+            expression = input('Operacao (aperte 0 e enter para sair): ')
             if expression == '0':
                 return
+
+            matched = re.match(self.regex, expression)
+            try:
+                first_number, operator, second_number = matched.groups()
+            except AttributeError:
+                print('Formato invalido, use:')
+                print('10 + 8')
+                print('10 - 8')
+                continue
+
+            if operator not in self.expressions.keys():
+                print('Operador nao reconhecido !!!')
+                continue
+
             print(expression, end=" => ")
-            self.calc(expression)
-
-    def calc(self, string):
-        self.expressions = {
-            '*': self._multiplication,
-            '/': self._division,
-            '-': self._subtraction,
-            '+': self._addition,
-        }
-        matched = re.match(self.regex, string)
-        first_number, operator, second_number = matched.groups()
-        if operator not in self.expressions.keys():
-            print('Operador nao reconhecido !!!')
-            return
-
-        print(self.expressions[operator](float(first_number), float(second_number)))
+            print(self.expressions[operator](float(first_number), float(second_number)))
 
     def _multiplication(self, a, b):
         return a * b
@@ -293,74 +326,79 @@ class Calculator:
         return a + b
 
 
-class ConversorDeMedidas:
+class MetricConverter:
     def __init__(self, *args, **kwargs):
+        self.currency = Currency()
         self.functions = {
-            '1': self.celsius_to_farenheit(),
-            '2': self.fahrenheit_to_celsius(),
-            '3': self.libra_to_kg(),
-            '4': self.kg_to_libra(),
-            '5': self.km_to_miles(),
-            '6': self.miles_to_km() ,
-            '7': self.funcRealDol(),
-            '8': self.close(),
+            '1': self.celsius_to_farenheit,
+            '2': self.fahrenheit_to_celsius,
+            '3': self.libra_to_kg,
+            '4': self.kg_to_libra,
+            '5': self.km_to_miles,
+            '6': self.miles_to_km ,
+            '7': self.usd_to_brl,
         }
+
+    def _get_usd_value(self):
+        data = self.currency.get_current_value('BRL')
+        return float(data['Realtime Currency Exchange Rate']['5. Exchange Rate'])
 
     def celsius_to_farenheit(self):
         celsius = float(input('Digite a temperatura em Celsius: '))
         fah = celsius * 1.8 + 32
-        print(f"\n {fah:.2f}ºF")
+        print(f"=> {fah:.2f} F")
 
     def fahrenheit_to_celsius(self):
         fah = float(input('Digite a temperatura em Fahrenheit: '))
         cel = (fah - 32) / 1.8
-        print(f"\n {cel:.2f}ºC")
+        print(f"=> {cel:.2f} C")
 
     def libra_to_kg(self):
         libras = float(input('Digite o peso em lbs: '))
         kg = libras / 2.2046
-        print(f"\n {kg:.2f} kg")
+        print(f"=> {kg:.2f} kg")
 
     def kg_to_libra(self):
         kg = float(input('Digite o peso em kg: '))
         libras = kg * 2.2046
-        print(f"\n {libras:.2f} lbs")
+        print(f"=> {libras:.2f} lbs")
 
     def km_to_miles(self):
         km = float(input('Digite a distancia em km: '))
         miles = km / 1.609
-        print(f"\n {miles:.2f} milhas")
+        print(f"=> {miles:.2f} milhas")
 
     def miles_to_km(self):
         miles = float(input('Digite a distancia em milhas: '))
         km = miles * 1.609
-        print(f"\n {km:.2f} km") 
+        print(f"=> {km:.2f} km") 
 
-    def funcRealDol(self):
-        usd = float(input('Digite quantos dólares você tem a sorte de ter agora: '))
-        brl = usd * 23.73
-        print(f"\n Com US$ {usd} vc tem aproximadamente R$ {brl:.2f}!")
+    def usd_to_brl(self):
+        usd = float(input('Digite a quantidade em dolares: '))
+        brl = usd * self._get_usd_value()
+        print(f"=> R$ {brl:.2f}")
 
     def main(self):
+        print('Bem vindo ao Conversor de Medidas')
         while True:
-            print('\n' + 50*'*')
-            print('Bem vindo ao Conversor de Medidas')
             print('1 - Conversor de Celsius para Fahrenheit')
             print('2 - Conversor de Fahrenheit para Celsius')
             print('3 - Conversor de libras para kg')
             print('4 - Conversor de kg para libras')
             print('5 - Conversor de km para milhas')
             print('6 - Conversor de milhas para km')
-            print('7 - Conversor aproximado de dólares para reais do futuro no ano de 2032')
-            print('8 - Encerrar programa')
+            print('7 - Conversor de dolar para real')
+            print('8 - Voltar ao menu principal')
 
-            option = int(input('Escolha uma das opcões acima (1 a 8):'))
-            if option not in self.functions.keys():
+            option = input('Escolha uma das opcões acima (1 a 8): ')
+            if option == '8':
+                return
+            elif option not in self.functions.keys():
                 print('Opcao nao encontrada !!!')
                 continue
 
-            self.expressions[option]()
-            input('Digite uma tecla para voltar ao menu inicial')
+            self.functions[option]()
+            input('Aperte enter para continuar\n')
 
 
 if __name__ == "__main__":
@@ -370,6 +408,7 @@ if __name__ == "__main__":
     menu = Menu(
         database,
         calculator=Calculator(),
+        metric_converter=MetricConverter(),
     )
     # TODO: Converter medidas
     # TODO: Listar bolsa pela api
