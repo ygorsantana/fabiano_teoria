@@ -8,6 +8,7 @@ import sys
 import pandas as pd
 import numpy as np
 import requests
+import random
 
 
 USERS_TABLE = 'tio_gordo_users.csv'
@@ -179,7 +180,8 @@ class Menu:
         self.options = {
             '1': calculator,
             '2': metric_converter,
-            '5': TerminalClear,
+            '5': PrizeDraw,
+            '6': TerminalClear,
         }
 
         self.initial_options = {
@@ -251,12 +253,13 @@ class Menu:
             '2. Conversor de medidas',
             '3. Gerar a lista usando a função MAP',
             '4. Gerar a lista usando a função FILTER',
-            '5. Limpar a tela',
-            '6. Sair',
+            '5. Sortear número aleatório',
+            '6. Limpar a tela',
+            '7. Sair',
             sep='\n',
         )
 
-        option = input('\nDigite uma opcao (de 1 a 6): ')
+        option = input('\nDigite uma opcao (de 1 a 7): ')
         if option not in self.options.keys():
             print('Opcao invalida !!!')
             return
@@ -325,6 +328,12 @@ class Calculator:
     def _addition(self, a, b):
         return a + b
 
+class PrizeDraw:
+    @staticmethod
+    def main():
+        n1 = int(input('Digite o primeiro valor: '))
+        n2 = int(input('Digite o último valor: '))
+        print('O valor sorteado foi: ', random.randint(n1, n2))
 
 class MetricConverter:
     def __init__(self, *args, **kwargs):
@@ -409,6 +418,7 @@ if __name__ == "__main__":
         database,
         calculator=Calculator(),
         metric_converter=MetricConverter(),
+        prize_draw=PrizeDraw(),
     )
     # TODO: Converter medidas
     # TODO: Listar bolsa pela api
