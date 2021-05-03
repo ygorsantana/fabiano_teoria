@@ -20,7 +20,7 @@ class Currency:
         self.api_key = "MC6NE9KMDFIWKVY5"
 
     def get_current_value(self, currency):
-        querystring = {
+        querystring = { 
             "function": "CURRENCY_EXCHANGE_RATE",
             "from_currency": "USD",
             "to_currency": currency,
