@@ -9,6 +9,7 @@ import pandas as pd
 import numpy as np
 import requests
 import random
+import time
 
 
 USERS_TABLE = 'tio_gordo_users.csv'
@@ -20,7 +21,7 @@ class Currency:
         self.api_key = "MC6NE9KMDFIWKVY5"
 
     def get_current_value(self, currency):
-        querystring = { 
+        querystring = {
             "function": "CURRENCY_EXCHANGE_RATE",
             "from_currency": "USD",
             "to_currency": currency,
@@ -33,6 +34,181 @@ class Currency:
         )
 
         return response.json()
+
+
+class Exchange:
+    def __init__(self, *args, **kwargs):
+        self.url = "https://www.alphavantage.co/query"
+        self.api_key = "MC6NE9KMDFIWKVY5"
+        self._btc = None
+        self._usd = None
+        self._eth = None
+        self._doge = None
+        self._gbp = None
+        self._jpy = None
+
+        self.currencies = {
+            'BTC': self.btc,
+            'USD': self.usd,
+            'ETH': self.eth,
+            'DOGE': self.doge,
+            'GBP': self.gbp,
+            'JPY': self.jpy,
+        }
+
+    @property
+    def btc(self):
+        if self._btc:
+            return self._btc
+
+        querystring = {
+            "function": "CURRENCY_EXCHANGE_RATE",
+            "from_currency": "BTC",
+            "to_currency": "BRL",
+            "apikey": self.api_key,
+        }
+
+        response = requests.get(
+            self.url,
+            params=querystring,
+        )
+        try:
+            self._btc = float(response.json()['Realtime Currency Exchange Rate']['5. Exchange Rate'])
+        except KeyError:
+            self._btc = 306564.67981200
+
+        return self._btc
+
+    @property
+    def usd(self):
+        if self._usd:
+            return self._usd
+
+        querystring = {
+            "function": "CURRENCY_EXCHANGE_RATE",
+            "from_currency": "USD",
+            "to_currency": "BRL",
+            "apikey": self.api_key,
+        }
+
+        response = requests.get(
+            self.url,
+            params=querystring,
+        )
+        try:
+            self._usd = float(response.json()['Realtime Currency Exchange Rate']['5. Exchange Rate'])
+        except KeyError:
+            self._usd = 5.35
+
+        return self._usd
+
+    @property
+    def eth(self):
+        if self._eth:
+            return self._eth
+
+        querystring = {
+            "function": "CURRENCY_EXCHANGE_RATE",
+            "from_currency": "ETH",
+            "to_currency": "BRL",
+            "apikey": self.api_key,
+        }
+
+        response = requests.get(
+            self.url,
+            params=querystring,
+        )
+        try:
+            self._eth = float(response.json()['Realtime Currency Exchange Rate']['5. Exchange Rate'])
+        except KeyError:
+            self._eth = 18055.23
+
+        return self._eth
+
+    @property
+    def doge(self):
+        if self._doge:
+            return self._doge
+
+        querystring = {
+            "function": "CURRENCY_EXCHANGE_RATE",
+            "from_currency": "DOGE",
+            "to_currency": "BRL",
+            "apikey": self.api_key,
+        }
+
+        response = requests.get(
+            self.url,
+            params=querystring,
+        )
+        try:
+            self._doge = float(response.json()['Realtime Currency Exchange Rate']['5. Exchange Rate'])
+        except KeyError:
+            self._doge = 3.41
+
+        return self._doge
+
+    @property
+    def gbp(self):
+        if self._gbp:
+            return self._gbp
+
+        querystring = {
+            "function": "CURRENCY_EXCHANGE_RATE",
+            "from_currency": "GBP",
+            "to_currency": "BRL",
+            "apikey": self.api_key,
+        }
+
+        response = requests.get(
+            self.url,
+            params=querystring,
+        )
+        try:
+            self._gbp = float(response.json()['Realtime Currency Exchange Rate']['5. Exchange Rate'])
+        except KeyError:
+            self._gbp = 7.46
+
+        return self._gbp
+
+    @property
+    def jpy(self):
+        if self._jpy:
+            return self._jpy
+
+        querystring = {
+            "function": "CURRENCY_EXCHANGE_RATE",
+            "from_currency": "JPY",
+            "to_currency": "BRL",
+            "apikey": self.api_key,
+        }
+
+        response = requests.get(
+            self.url,
+            params=querystring,
+        )
+        try:
+            self._jpy = float(response.json()['Realtime Currency Exchange Rate']['5. Exchange Rate'])
+        except KeyError:
+            self._jpy = 0.049
+
+        return self._jpy
+
+    def get_col_size_value(self):
+        return max([len(f'{x:.3f}') for x in self.currencies.values()])
+
+    def main(self):
+        print(
+            *[f'{x:^{self.get_col_size_value()}}' for x in self.currencies.keys()],
+            sep=' | ',
+        )
+        print(
+            *[f'{x:{self.get_col_size_value()}.3f}' for x in self.currencies.values()],
+            sep=' | ',
+        )
+        print('\n' * 5)
+
+        input('Aperte enter para continuar... ')
 
 
 class Bcolors:
@@ -68,7 +244,7 @@ class Database:
         if os.path.exists(USERS_TABLE):
             return
 
-        columns=[
+        columns = [
             'id',
             'first_name',
             'last_name',
@@ -164,24 +340,45 @@ class User:
 
 class TerminalClear:
     @staticmethod
-    def main():
+    def clear_window():
         if sys.platform == 'linux':
             os.system('clear')
         else:
             os.system('cls')
+
+    @staticmethod
+    def main():
+        TerminalClear.clear_window()
+
+
+class CustomPrint:
+    def credits(self, *string):
+        unique_text = '\n'.join(string)
+        for char in unique_text:
+            print(char, end='', flush=True)
+            time.sleep(0.02)
+        print()
+    
+    def delayed(self, string, time_to_sleep):
+        for char in string:
+            print(char, end='', flush=True)
+            time.sleep(time_to_sleep)
+        print()
 
 
 class Menu:
     regex_hard_password_validator = r'^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[*.!@$%^&(){}[]:;<>,.?/~_+-=|\]).{8,32}$'
     regex_password_validator = r'^(?=.*[a-zA-Z0-9]).{3,}$'
 
-    def __init__(self, database, calculator, metric_converter, *args, **kwargs):
+    def __init__(self, database, calculator, metric_converter, prize_draw, exchange, *args, **kwargs):
         self.database = database
+        self.print = CustomPrint()
         self.options = {
             '1': calculator,
             '2': metric_converter,
-            '5': PrizeDraw,
-            '6': TerminalClear,
+            '3': prize_draw,
+            '4': exchange,
+            '5': TerminalClear,
         }
 
         self.initial_options = {
@@ -197,7 +394,7 @@ class Menu:
             )
             option = input('Selecione uma opção acima: ')
             logged, msg = self.initial_options[option]()
-            self.options['5'].main()
+            TerminalClear.clear_window()
             if logged:
                 break
             print(msg)
@@ -246,29 +443,50 @@ class Menu:
         if self.user.is_authenticated:
             print(f'Usuario: {self.user}\n')
 
+    def credits(self):
+        self.print.credits(
+            'Bruna Timoteo 73389',
+            'Davi Henrique 102227',
+            'Gabriel Pinheiro 103362',
+            'Felipe Godoy 104496',
+            'Julie Ribeiro da Silva 104650',
+            'Rafael Mercatelli 103398',
+            'Ygor Santana 102928',
+            '',
+            'Foi um prazer ter feito esse trabalho e',
+            'repassado o conhecimento aos meus colegas',
+        )
+
     def show(self):
         self.header()
         print(
             f'1. Calculadora',
             '2. Conversor de medidas',
-            '3. Gerar a lista usando a função MAP',
-            '4. Gerar a lista usando a função FILTER',
-            '5. Sortear número aleatório',
-            '6. Limpar a tela',
+            '3. Sortear numero aleatorio',
+            '4. Bolsa de valores',
+            '5. Limpar a tela',
+            '6. Créditos',
             '7. Sair',
             sep='\n',
         )
 
         option = input('\nDigite uma opcao (de 1 a 7): ')
-        if option not in self.options.keys():
+        if option == '7':
+            self.print.delayed('\nSentiremos sua falta !!!\n', 0.07)
+            exit(0)
+        elif option == '6':
+            print('\n')
+            self.credits()
+            print('\n')
+            input('Aperte Enter para continuar... ')
+            return
+        elif option not in self.options.keys():
             print('Opcao invalida !!!')
             return
 
-        print('\n' * 10)
+        print('\n' * 20)
         self.options[option].main()
-        print('\n' * 10)
-
-        # input('\nAperte enter para continuar\n')
+        print('\n' * 20)
 
 
 class Calculator:
@@ -328,12 +546,18 @@ class Calculator:
     def _addition(self, a, b):
         return a + b
 
+
 class PrizeDraw:
-    @staticmethod
-    def main():
-        n1 = int(input('Digite o primeiro valor: '))
-        n2 = int(input('Digite o último valor: '))
-        print('O valor sorteado foi: ', random.randint(n1, n2))
+    def main(self):
+        while True:
+            try:
+                print('Use o atalho Ctrl + C para sair do sorteio')
+                n1 = int(input('Digite o primeiro valor: '))
+                n2 = int(input('Digite o último valor: '))
+                print(f'\nO valor sorteado foi: {random.randint(n1, n2)}\n')
+            except KeyboardInterrupt:
+                break
+
 
 class MetricConverter:
     def __init__(self, *args, **kwargs):
@@ -350,7 +574,10 @@ class MetricConverter:
 
     def _get_usd_value(self):
         data = self.currency.get_current_value('BRL')
-        return float(data['Realtime Currency Exchange Rate']['5. Exchange Rate'])
+        try:
+            return float(data['Realtime Currency Exchange Rate']['5. Exchange Rate'])
+        except:
+            return 5.35
 
     def celsius_to_farenheit(self):
         celsius = float(input('Digite a temperatura em Celsius: '))
@@ -419,10 +646,8 @@ if __name__ == "__main__":
         calculator=Calculator(),
         metric_converter=MetricConverter(),
         prize_draw=PrizeDraw(),
+        exchange=Exchange(),
     )
-    # TODO: Converter medidas
-    # TODO: Listar bolsa pela api
-    # TODO: Gerador de numeros aleatorios
-    # TODO: Easter egg
+
     while True:
         menu.show()
